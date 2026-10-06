@@ -89,6 +89,83 @@ def generate_brief(model_name, provider, token, instructions, user_input):
     return content
 
 
+def show_brief_gui(brief: str, ticker: str) -> None:
+    """Display the generated Markdown brief in a simple, colored desktop window."""
+    import re
+    import tkinter as tk
+    import webbrowser
+    from tkinter import ttk
+
+    root = tk.Tk()
+    root.title(f'{ticker} Research Brief')
+    root.geometry('900x720')
+    root.minsize(640, 480)
+    root.configure(bg='#f3f6fb')
+
+    style = ttk.Style(root)
+    style.configure('Brief.TFrame', background='#f3f6fb')
+    style.configure('Title.TLabel', background='#f3f6fb', foreground='#17365d',
+                    font=('Segoe UI', 18, 'bold'))
+    style.configure('Hint.TLabel', background='#f3f6fb', foreground='#64748b',
+                    font=('Segoe UI', 9))
+
+    frame = ttk.Frame(root, padding=18, style='Brief.TFrame')
+    frame.pack(fill='both', expand=True)
+    ttk.Label(frame, text=f'{ticker} Research Brief', style='Title.TLabel').pack(anchor='w')
+    ttk.Label(frame, text='Source-grounded summary', style='Hint.TLabel').pack(anchor='w', pady=(2, 12))
+
+    body = ttk.Frame(frame)
+    body.pack(fill='both', expand=True)
+    scroll = ttk.Scrollbar(body)
+    scroll.pack(side='right', fill='y')
+    view = tk.Text(body, wrap='word', yscrollcommand=scroll.set, padx=18, pady=14,
+                   bg='white', fg='#243247', relief='flat', borderwidth=0,
+                   font=('Segoe UI', 11), spacing1=2, spacing3=7)
+    view.pack(side='left', fill='both', expand=True)
+    scroll.configure(command=view.yview)
+    view.tag_configure('h1', font=('Segoe UI', 15, 'bold'), foreground='#17365d', spacing1=12, spacing3=8)
+    view.tag_configure('h2', font=('Segoe UI', 12, 'bold'), foreground='#2563a6', spacing1=9, spacing3=4)
+    view.tag_configure('bullet', foreground='#2563a6', font=('Segoe UI', 11, 'bold'))
+    view.tag_configure('citation', foreground='#16805d', font=('Segoe UI', 10, 'bold'))
+    view.tag_configure('link', foreground='#1769aa', underline=True)
+
+    def insert_inline(text: str) -> None:
+        # Render Markdown links as clickable labels while keeping their visible title.
+        cursor = 0
+        pattern = r'\[([^\]]+)\]\((https?://[^)]+)\)|(\[S\d+(?:[, ]+S\d+)*\])'
+        for match in re.finditer(pattern, text):
+            view.insert('end', text[cursor:match.start()])
+            if match.group(2):
+                start = view.index('end-1c')
+                view.insert('end', match.group(1), 'link')
+                end = view.index('end-1c')
+                tag = f'url_{start.replace(".", "_")}'
+                view.tag_add(tag, start, end)
+                view.tag_bind(tag, '<Button-1>', lambda _event, url=match.group(2): webbrowser.open(url))
+            else:
+                view.insert('end', match.group(3), 'citation')
+            cursor = match.end()
+        view.insert('end', text[cursor:])
+
+    for line in brief.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            view.insert('end', '\n')
+        elif stripped.startswith('# '):
+            view.insert('end', stripped[2:] + '\n', 'h1')
+        elif stripped.startswith('## '):
+            view.insert('end', stripped[3:] + '\n', 'h2')
+        elif stripped.startswith(('- ', '* ')):
+            view.insert('end', '• ', 'bullet')
+            insert_inline(stripped[2:])
+            view.insert('end', '\n')
+        else:
+            insert_inline(stripped)
+            view.insert('end', '\n')
+    view.configure(state='disabled')
+    root.mainloop()
+
+
 def main():
     if hasattr(sys.stdout,'reconfigure'):
         sys.stdout.reconfigure(errors='backslashreplace')
@@ -140,6 +217,7 @@ def main():
         print('[5/5] DRY RUN complete. Hugging Face inference was not called.',flush=True)
         return
     print('[5/5] Calling Hugging Face hosted inference...',flush=True)
-    print(generate_brief(model,provider,hf_token,instructions,evidence_input))
+    brief=generate_brief(model,provider,hf_token,instructions,evidence_input)
+    show_brief_gui(brief,args.ticker)
 
 if __name__=='__main__': main()

@@ -17,6 +17,8 @@ python src\research_agent.py SRVCABLE --docs research_pack --top-k 8 --dry-run
 python src\research_agent.py SRVCABLE --docs research_pack --top-k 8 --generate
 ```
 
+After generation, the brief opens in a desktop window with colored section headings, highlighted citations, and clickable source links. The window uses Python's built-in Tkinter library.
+
 Brief generation uses Hugging Face hosted Inference Providers with `InferenceClient`; the generation model is not downloaded locally. Set `HF_TOKEN` to an inference-enabled Hugging Face token, `HF_PROVIDER` to a provider enabled for your account, and `HF_MODEL` to a chat-completion model that provider serves. The example configuration uses provider `nscale` and model `Qwen/Qwen2.5-Coder-7B-Instruct`. The `LessThanThreeAI/Qwen3.8-27B-Humanlike-Chat-GGUF` repository contains GGUF model files; a token alone cannot serve those files as an inference API. Use a model shown as available for chat completion in Hugging Face Inference Providers, or deploy the GGUF separately as an Inference Endpoint. Retrieval still uses local sentence-transformer embedding and reranker models, downloaded from Hugging Face on first use.
 
 `--dry-run` executes ingestion, local retrieval and prompt/configuration checks, then prints the selected sources and a rough input-token estimate without calling hosted inference. Run `--generate` only after reviewing that output. If Hugging Face returns `model_not_supported`, choose a chat model with a provider enabled for your account; merely changing the repository ID to another unsupported model will not resolve it.
